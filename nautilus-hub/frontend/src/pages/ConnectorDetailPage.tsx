@@ -184,7 +184,57 @@ function ResultView({
       </div>
     )
   }
+if (capability === 'device_details') {
+  const d = Array.isArray(data) ? data[0] : data
+  if (!d) return null
+  return (
+    <div className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold">{d.device || '—'}</p>
+        <StatusBadgeInline status={d.status || ''} />
+      </div>
+      {d.host && (
+        <div className="flex gap-2 text-xs">
+          <span className="text-muted-foreground">Host:</span>
+          <span className="font-medium">{d.host}</span>
+        </div>
+      )}
+      {d.group && (
+        <div className="flex gap-2 text-xs">
+          <span className="text-muted-foreground">Grupo:</span>
+          <span>{d.group}</span>
+        </div>
+      )}
+      {d.location && (
+        <div className="flex gap-2 text-xs">
+          <span className="text-muted-foreground">Ubicación:</span>
+          <span>{stripHtml(d.location)}</span>
+        </div>
+      )}
+      {d.message && (
+        <p className="text-xs text-muted-foreground border-t pt-2">{stripHtml(d.message)}</p>
+      )}
+    </div>
+  )
+}
 
+if (capability === 'sensor_history') {
+  const items = data?.data?.histdata || data?.histdata || []
+  if (!items.length) return <p className="text-xs p-3 text-muted-foreground">Sin historial</p>
+  return (
+    <div className="divide-y">
+      {items.slice(0, 50).map((h: any, i: number) => (
+        <div key={i} className="px-3 py-2 flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground shrink-0">{h.datetime}</span>
+          <span className="text-xs font-medium">{h.value || '—'}</span>
+          {h.coverage && (
+            <span className="text-xs text-muted-foreground">{h.coverage}</span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
   return (
     <pre className="text-xs p-3 whitespace-pre-wrap">
       {JSON.stringify(data, null, 2)}
