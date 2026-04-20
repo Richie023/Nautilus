@@ -253,31 +253,45 @@ export class PRTGAdapter extends BaseAdapter {
   /**
    * DEVICE DETAILS
    */
-  async getDeviceDetails(id) {
-    if (!id) return { success: false, error: 'Device ID is required' };
+ async getDeviceDetails(id) {
+  if (!id) return { success: false, error: 'Device ID is required' };
 
-    return await this.safeGet('/api/getobjectstatus.json', {
-      params: { ...this.authParams, id },
-    });
-  }
+  const result = await this.safeGet('/api/table.json', {
+    params: {
+      ...this.authParams,
+      content: 'devices',
+      columns: 'objid,device,host,group,status,message,location,tags,priority',
+      filter_objid: id,
+    },
+  });
 
+  if (!result.success) return result;
+  return result.data.devices?.[0] || { error: 'Device not found' };
+}
   /**
    * SENSOR HISTORY
    */
-  async getSensorHistory(id, { avg = 0, sdate, edate } = {}) {
-    if (!id) return { success: false, error: 'Sensor ID is required' };
+async getSensorHistory(id, { avg = 0, sdate, edate } = {}) {
+  if (!id) return { success: false, error: 'Sensor ID is required' };
 
-    return await this.safeGet('/api/historicdata.json', {
-      params: {
-        ...this.authParams,
-        id,
-        avg,
-        sdate,
-        edate,
-      },
-    });
-  }
+  const now = new Date();
+  const yesterday = new Date(now - 24 * 60 * 60 * 1000);
+  
+  const fmt = (d) => {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+  };
 
+  return await this.safeGet('/api/historicdata.json', {
+    params: {
+      ...this.authParams,
+      id,
+      avg,
+      sdate: sdate || fmt(yesterday),
+      edate: edate || fmt(now),
+    },
+  });
+}
   /**
    * PAUSE / RESUME
    */
