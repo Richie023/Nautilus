@@ -1,0 +1,20 @@
+{
+  "name": "nautilus-hub",
+  "version": "1.0.0",
+  "description": "Nautilus Integration Hub - Central hub for IT tool integrations",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm --workspace=backend run dev",
+    "dev:frontend": "npm --workspace=frontend run dev",
+    "build": "npm --workspace=frontend run build",
+    "install:all": "npm install && npm --workspace=backend install && npm --workspace=frontend install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment files (NEVER commit these)
+.env
+backend/.env
+*.env.local
+
+# Build output
+frontend/dist/
+frontend/build/
+
+# Database & logs
+backend/data/
+backend/logs/
+*.db
+*.sqlite
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Temp
+*.tmp
+*.log
+npm-debug.log*
