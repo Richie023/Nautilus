@@ -1,12 +1,19 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, RefreshCw, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft, RefreshCw, Trash2, Play, Clock, CheckCircle,
+  XCircle, AlertCircle, Server, Globe, Key, Timer
+} from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { connectorsApi, probeApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { StatusBadge } from '@/components/connectors/StatusBadge'
+import { ConnectorIcon } from '@/components/connectors/ConnectorIcon'
 import { CapabilityBadge } from '@/components/connectors/CapabilityBadge'
 import { toast } from '@/hooks/use-toast'
+import { formatDate, formatRelative, formatDuration } from '@/lib/utils'
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').trim()
@@ -26,54 +33,53 @@ function StatusBadgeInline({ status }: { status: string }) {
   )
 }
 
-function StatusCards({ data }: { data: any }) {
-  const d = data?.data || data
-  const cards = [
-    { label: 'Up', value: d?.UpSens ?? '—', color: 'border-green-500 text-green-400' },
-    { label: 'Warning', value: d?.WarnSens ?? '—', color: 'border-yellow-500 text-yellow-400' },
-    { label: 'Down', value: d?.DownSens ?? '—', color: 'border-red-500 text-red-400' },
-    { label: 'Paused', value: d?.PausedSens ?? '—', color: 'border-gray-500 text-gray-400' },
-  ]
-  return (
-    <div className="grid grid-cols-4 gap-2 p-3">
-      {cards.map((c) => (
-        <div key={c.label} className={`border-2 rounded-lg p-3 text-center ${c.color}`}>
-          <p className={`text-2xl font-bold`}>{c.value}</p>
-          <p className="text-xs text-muted-foreground mt-1">{c.label}</p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function ItemList({ items, onSelect }: { items: any[], onSelect?: (id: number) => void }) {
+  const [search, setSearch] = useState('')
+  const filtered = items.filter((item: any) => {
+    const name = item.device || item.sensor || item.group || item.probe || item.name || ''
+    return name.toLowerCase().includes(search.toLowerCase())
+  })
+
   if (!items.length) return <p className="text-xs p-3 text-muted-foreground">Sin datos</p>
+
   return (
-    <div className="divide-y">
-      {items.map((item: any, i: number) => (
-        <div
-          key={i}
-          onClick={() => onSelect?.(item.objid)}
-          className="px-3 py-2 hover:bg-secondary/30 cursor-pointer flex items-center justify-between gap-2"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium truncate">
-              {item.device || item.sensor || item.group || item.probe || item.name || '—'}
-            </p>
-            {item.host && <p className="text-xs text-muted-foreground">{item.host}</p>}
-            {item.device && item.group && <p className="text-xs text-muted-foreground">{item.group}</p>}
-            {item.lastvalue && <p className="text-xs text-muted-foreground">{item.lastvalue}</p>}
-            {item.message && (
-              <p className="text-xs text-muted-foreground truncate">{stripHtml(item.message)}</p>
+    <div>
+      <div className="px-3 py-2 border-b">
+        <input
+          type="text"
+          placeholder="Buscar..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full text-xs bg-secondary/30 border border-border rounded px-2 py-1 outline-none focus:border-cyan-500"
+        />
+      </div>
+      <p className="text-xs px-3 py-1 text-muted-foreground">{filtered.length} de {items.length} items</p>
+      <div className="divide-y">
+        {filtered.map((item: any, i: number) => (
+          <div
+            key={i}
+            onClick={() => onSelect?.(item.objid)}
+            className="px-3 py-2 hover:bg-secondary/30 cursor-pointer flex items-center justify-between gap-2"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium truncate">
+                {item.device || item.sensor || item.group || item.probe || item.name || '—'}
+              </p>
+              {item.host && <p className="text-xs text-muted-foreground">{item.host}</p>}
+              {item.device && item.group && <p className="text-xs text-muted-foreground">{item.group}</p>}
+              {item.lastvalue && <p className="text-xs text-muted-foreground">{item.lastvalue}</p>}
+              {item.message && (
+                <p className="text-xs text-muted-foreground truncate">{stripHtml(item.message)}</p>
+              )}
+            </div>
+            {item.status && (
+              <div className="shrink-0">
+                <StatusBadgeInline status={item.status} />
+              </div>
             )}
           </div>
-          {item.status && (
-            <div className="shrink-0">
-              <StatusBadgeInline status={item.status} />
-            </div>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
@@ -128,7 +134,46 @@ function ResultView({
   if (!data) return null
 
   if (capability === 'status') {
-    return <StatusCards data={data} />
+    const d = data?.data || data
+    const total = (d?.UpSens || 0) + (d?.WarnSens || 0) + (d?.DownSens || 0) + (d?.PausedSens || 0)
+    const barData = [
+      { name: 'Up', value: d?.UpSens || 0, color: '#22c55e' },
+      { name: 'Warning', value: d?.WarnSens || 0, color: '#eab308' },
+      { name: 'Down', value: d?.DownSens || 0, color: '#ef4444' },
+      { name: 'Paused', value: d?.PausedSens || 0, color: '#6b7280' },
+    ]
+    return (
+      <div className="p-3 space-y-3">
+        <div className="grid grid-cols-4 gap-2">
+          {barData.map((c) => (
+            <div key={c.name} className="rounded-lg p-3 text-center" style={{ border: `2px solid ${c.color}` }}>
+              <p className="text-2xl font-bold" style={{ color: c.color }}>{c.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{c.name}</p>
+            </div>
+          ))}
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Distribución ({total} sensores)</p>
+          <div className="flex rounded-full overflow-hidden h-3">
+            {barData.filter(b => b.value > 0).map((b) => (
+              <div
+                key={b.name}
+                style={{ width: `${(b.value / total) * 100}%`, background: b.color }}
+                title={`${b.name}: ${b.value}`}
+              />
+            ))}
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            {barData.filter(b => b.value > 0).map((b) => (
+              <div key={b.name} className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full" style={{ background: b.color }} />
+                <span className="text-xs text-muted-foreground">{b.name} {Math.round((b.value / total) * 100)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (['devices', 'sensors', 'alerts', 'groups'].includes(capability)) {
@@ -139,6 +184,126 @@ function ResultView({
   if (capability === 'sensor_details') {
     return <SensorDetailView data={data} />
   }
+
+  if (capability === 'device_details') {
+    const d = Array.isArray(data) ? data[0] : data
+    if (!d) return null
+    return (
+      <div className="p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold">{d.device || '—'}</p>
+          <StatusBadgeInline status={d.status || ''} />
+        </div>
+        {d.host && (
+          <div className="flex gap-2 text-xs">
+            <span className="text-muted-foreground">Host:</span>
+            <span className="font-medium">{d.host}</span>
+          </div>
+        )}
+        {d.group && (
+          <div className="flex gap-2 text-xs">
+            <span className="text-muted-foreground">Grupo:</span>
+            <span>{d.group}</span>
+          </div>
+        )}
+        {d.location && (
+          <div className="flex gap-2 text-xs">
+            <span className="text-muted-foreground">Ubicación:</span>
+            <span>{stripHtml(d.location)}</span>
+          </div>
+        )}
+        {d.message && (
+          <p className="text-xs text-muted-foreground border-t pt-2">{stripHtml(d.message)}</p>
+        )}
+      </div>
+    )
+  }
+
+ if (capability === 'sensor_history') {
+  const items: any[] = data?.data?.histdata || data?.histdata || []
+
+  if (!items.length) {
+    return (
+      <div className="p-4 text-center text-muted-foreground text-sm">
+        Sin datos de historial
+      </div>
+    )
+  }
+
+  const chartData = items.slice(0, 60).map((h: any) => {
+    const raw = parseFloat(h.value_raw) || 0
+
+    return {
+      time: h.datetime?.split(' ')[1] || h.datetime,
+      value: raw,
+      label: h.value || '—',
+    }
+  }).reverse()
+
+  const values = chartData.map((d: any) => d.value)
+
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const avg = values.reduce((a: number, b: number) => a + b, 0) / values.length
+
+  return (
+    <div className="p-3 space-y-3">
+
+      {/* RESUMEN */}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="bg-secondary/30 rounded p-2">
+          <p className="text-xs text-muted-foreground">Min</p>
+          <p className="text-sm font-semibold">{min.toFixed(2)}</p>
+        </div>
+        <div className="bg-secondary/30 rounded p-2">
+          <p className="text-xs text-muted-foreground">Promedio</p>
+          <p className="text-sm font-semibold">{avg.toFixed(2)}</p>
+        </div>
+        <div className="bg-secondary/30 rounded p-2">
+          <p className="text-xs text-muted-foreground">Max</p>
+          <p className="text-sm font-semibold">{max.toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* GRAFICA */}
+      <div className="w-full h-[220px] bg-secondary/20 rounded-lg p-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+            
+            <XAxis dataKey="time" tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} width={45} />
+
+            <Tooltip
+              contentStyle={{
+                fontSize: 12,
+                background: '#111827',
+                border: '1px solid #333',
+                borderRadius: '8px'
+              }}
+              formatter={(value: number, name: string, props: any) => {
+                return [props.payload.label, 'Valor']
+              }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="#22d3ee"
+              strokeWidth={2}
+              dot={false}
+            />
+
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <p className="text-xs text-muted-foreground text-center">
+        {chartData.length} registros
+      </p>
+
+    </div>
+  )
+}
 
   if (capability === 'logs') {
     const items = Array.isArray(data) ? data : []
@@ -184,57 +349,7 @@ function ResultView({
       </div>
     )
   }
-if (capability === 'device_details') {
-  const d = Array.isArray(data) ? data[0] : data
-  if (!d) return null
-  return (
-    <div className="p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">{d.device || '—'}</p>
-        <StatusBadgeInline status={d.status || ''} />
-      </div>
-      {d.host && (
-        <div className="flex gap-2 text-xs">
-          <span className="text-muted-foreground">Host:</span>
-          <span className="font-medium">{d.host}</span>
-        </div>
-      )}
-      {d.group && (
-        <div className="flex gap-2 text-xs">
-          <span className="text-muted-foreground">Grupo:</span>
-          <span>{d.group}</span>
-        </div>
-      )}
-      {d.location && (
-        <div className="flex gap-2 text-xs">
-          <span className="text-muted-foreground">Ubicación:</span>
-          <span>{stripHtml(d.location)}</span>
-        </div>
-      )}
-      {d.message && (
-        <p className="text-xs text-muted-foreground border-t pt-2">{stripHtml(d.message)}</p>
-      )}
-    </div>
-  )
-}
 
-if (capability === 'sensor_history') {
-  const items = data?.data?.histdata || data?.histdata || []
-  if (!items.length) return <p className="text-xs p-3 text-muted-foreground">Sin historial</p>
-  return (
-    <div className="divide-y">
-      {items.slice(0, 50).map((h: any, i: number) => (
-        <div key={i} className="px-3 py-2 flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground shrink-0">{h.datetime}</span>
-          <span className="text-xs font-medium">{h.value || '—'}</span>
-          {h.coverage && (
-            <span className="text-xs text-muted-foreground">{h.coverage}</span>
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
   return (
     <pre className="text-xs p-3 whitespace-pre-wrap">
       {JSON.stringify(data, null, 2)}
@@ -276,13 +391,43 @@ function CapabilityPanel({
     }
   }
 
+  const executePause = async (action: number) => {
+    setLoading(true)
+    setError(null)
+    try {
+      if (!selectedId) {
+        setError('Seleccioná un dispositivo o sensor primero')
+        return
+      }
+      const res = await connectorsApi.execute(connectorId, 'pause', { id: selectedId, action })
+      setResult(res.data)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="border rounded-lg overflow-hidden">
       <div className="flex justify-between items-center px-3 py-2 bg-secondary/30">
         <CapabilityBadge capability={capability} />
-        <Button size="sm" onClick={execute} disabled={loading}>
-          {loading ? '...' : 'Fetch'}
-        </Button>
+        <div className="flex gap-2">
+          {capability === 'pause' ? (
+            <>
+              <Button size="sm" variant="outline" onClick={() => executePause(0)} disabled={loading}>
+                ⏸ Pausar
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => executePause(1)} disabled={loading}>
+                ▶ Reanudar
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={execute} disabled={loading}>
+              {loading ? '...' : 'Fetch'}
+            </Button>
+          )}
+        </div>
       </div>
       {selectedId && (
         <p className="text-xs px-3 pt-1 text-muted-foreground">
@@ -297,6 +442,7 @@ function CapabilityPanel({
       )}
     </div>
   )
+
 }
 
 export function ConnectorDetailPage() {

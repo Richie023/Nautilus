@@ -295,17 +295,38 @@ async getSensorHistory(id, { avg = 0, sdate, edate } = {}) {
   /**
    * PAUSE / RESUME
    */
-  async pauseObject(id, action = 0) {
-    if (!id) return { success: false, error: 'ID is required' };
+async pauseObject(id, action = 0) {
+  if (!id) return { success: false, error: 'ID is required' };
 
-    return await this.safeGet('/api/pause.htm', {
-      params: {
-        ...this.authParams,
-        id,
-        action,
-      },
-    });
+  // action 0 = pausar, action 1 = reanudar
+  const endpoint = action == 1
+    ? '/api/pause.htm'
+    : '/api/pauseobjectfor.htm';
+
+  const params = {
+    ...this.authParams,
+    id,
+    action,
+  };
+
+  if (action == 0) {
+    params.pausemsg = 'Pausado desde IT Hub';
+    params.duration = 0;
   }
+
+  const result = await this.safeGet(endpoint, {
+    params,
+    responseType: 'text',
+  });
+
+  return {
+    success: result.status === 200,
+    action,
+    message: action == 1 ? 'Sensor reanudado' : 'Sensor pausado'
+  };
+}
+  
+  
 
   /**
    * ACK ALERT
