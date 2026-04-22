@@ -349,6 +349,102 @@ function ResultView({
       </div>
     )
   }
+if (capability === 'mail_stats') {
+  const items = data || []
+
+  if (!items.length) {
+    return <p className="text-xs p-3 text-muted-foreground">Sin estadísticas</p>
+  }
+
+  const chartData = items.map((d: any) => ({
+    time: new Date(d.time * 1000).toLocaleTimeString(),
+    inbound: d.in || 0,
+    outbound: d.out || 0,
+    spam: d.spam || 0,
+  }))
+
+  return (
+    <div className="p-3 space-y-3">
+
+      <div className="w-full h-[220px] bg-secondary/20 rounded-lg p-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+
+            <XAxis dataKey="time" tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} width={40} />
+
+            <Tooltip />
+
+            <Line type="monotone" dataKey="inbound" stroke="#22c55e" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="outbound" stroke="#3b82f6" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="spam" stroke="#ef4444" strokeWidth={2} dot={false} />
+
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <p className="text-xs text-muted-foreground text-center">
+        Tráfico de correo (entrada, salida, spam)
+      </p>
+
+    </div>
+  )
+}
+if (capability === 'quarantine') {
+  const items = data || []
+
+  if (!items.length) {
+    return <p className="text-xs p-3 text-muted-foreground">Sin correos en cuarentena</p>
+  }
+
+  return (
+    <div className="divide-y">
+      {items.map((mail: any, i: number) => (
+        <div key={i} className="p-2 text-xs">
+          <p><strong>De:</strong> {mail.sender}</p>
+          <p><strong>Para:</strong> {mail.receiver}</p>
+          <p><strong>Asunto:</strong> {mail.subject}</p>
+          <p className="text-muted-foreground">
+            {new Date(mail.time * 1000).toLocaleString()}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+}
+if (capability === 'domains') {
+  const items = data || []
+
+  return (
+    <div className="divide-y">
+      {items.map((d: any, i: number) => (
+        <div key={i} className="p-2 text-xs flex justify-between">
+          <span>{d.domain}</span>
+          <span className="text-muted-foreground">
+            {d.active ? 'Activo' : 'Inactivo'}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+if (capability === 'rules') {
+  const items = data || []
+
+  return (
+    <div className="divide-y">
+      {items.map((r: any, i: number) => (
+        <div key={i} className="p-2 text-xs">
+          <p className="font-medium">{r.name}</p>
+          <p className="text-muted-foreground">{r.direction}</p>
+          <p className="text-muted-foreground">
+            Prioridad: {r.priority}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+}
 
   return (
     <pre className="text-xs p-3 whitespace-pre-wrap">
